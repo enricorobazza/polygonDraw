@@ -1,7 +1,8 @@
 #include "openglpanel.h"
 
 const double line_height = 0.001;
-const bool DEBUG = true;
+const int multiplier = 25;
+const bool DEBUG = false;
 int executed = 0;
 
 class Point{
@@ -19,18 +20,6 @@ class Point{
         char name;
 };
 
-//class EdgeBucket{
-//    public:
-//        EdgeBucket(int ymax, int xmin, double m){
-//            this->ymax = ymax;
-//            this->xmin = xmin;
-//            this->m = m;
-//        }
-//        int ymax;
-//        double m, xmin;
-//};
-
-// Debugging purposes
 class EdgeBucket{
 public:
     EdgeBucket(int ymax, int xmin, double m){
@@ -40,7 +29,7 @@ public:
     }
     int ymax;
     double m, xmin;
-    char from, to;
+    char from, to; // Only for Debugging purposes
 };
 
 class Table{
@@ -92,7 +81,7 @@ class Table{
         }
 };
 
-std::map<int, Table> EdgeTable;
+std::map<double, Table> EdgeTable;
 Table ActiveEdgeTable;
 
 OpenGLPanel::OpenGLPanel(QWidget *parent) : QOpenGLWidget {parent}
@@ -105,8 +94,7 @@ void OpenGLPanel::initializeGL(){
     glClearColor(1, 1, 0, 1);
     glMatrixMode( GL_PROJECTION );
     glLoadIdentity();
-//    glOrtho(0,1,1,0,0,-1);
-    glOrtho(0, 40, 0, 25, 0, -1);
+    glOrtho(0, 40*multiplier, 0, 25*multiplier, 0, -1);
     glMatrixMode( GL_MODELVIEW );
 }
 
@@ -140,9 +128,9 @@ void addEdgeToET(int x1, int y1, int x2, int y2, char from = ';', char to = ';')
 void OpenGLPanel::ScanLine(int maxy){
     if(DEBUG) printf("Starting ScanLine\n");
     ActiveEdgeTable = Table();
-    for(int scanline = 0; scanline < maxy; scanline++){
+    for(double scanline = 0; scanline < maxy; scanline+=1){
 
-        if(DEBUG) printf("Scanline: %d\n", scanline);
+        if(DEBUG) printf("Scanline: %lf\n", scanline);
         if(EdgeTable.find(scanline) != EdgeTable.end())
         for(int i=0; i<EdgeTable.at(scanline).buckets.size(); i++)
         {
@@ -212,18 +200,38 @@ void OpenGLPanel::ScanLine(int maxy){
 
 void OpenGLPanel::start()
 {
-    std::vector<Point> pontos = {
+    /*std::vector<Point> pontos = {
         Point(2,3, 'A'),
         Point(7,1, 'B'),
         Point(13, 5, 'C'),
         Point(13, 11, 'D'),
         Point(7,7, 'E'),
         Point(2,9, 'F')
+    };*/
+
+    std::vector<Point> pontos={
+        Point(4, 2, 'A'),
+        Point(6,2,'B'),
+        Point(6,6, 'C'),
+        Point(9,6,'D'),
+        Point(11,8,'E'),
+        Point(8,11, 'F'),
+        Point(4,11,'G'),
+        Point(4,9,'H'),
+        Point(1,9,'I'),
+        Point(1,4,'J')
     };
 
     int i;
 
     pontos.push_back(pontos.at(0));
+
+    for(i = 0;i<pontos.size();i++)
+    {
+        pontos[i].x = pontos[i].x * multiplier;
+        pontos[i].y = pontos[i].y * multiplier;
+    }
+
     EdgeTable.clear();
 
     for(i=0; i < pontos.size() - 1 ; i++)
@@ -236,7 +244,7 @@ void OpenGLPanel::start()
         else addEdgeToET(pontos[i].x, pontos[i].y, pontos[i+1].x, pontos[i+1].y, pontos[i].name, pontos[i+1].name);
     }
 
-    ScanLine(12);
+    ScanLine(12*multiplier);
 
 //    std::map<int, Table>::iterator it = EdgeTable.begin();
 

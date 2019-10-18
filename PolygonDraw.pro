@@ -16,13 +16,19 @@ DEFINES += QT_DEPRECATED_WARNINGS
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+    edgebucket.cpp \
     main.cpp \
     mainwindow.cpp \
-    openglpanel.cpp
+    openglpanel.cpp \
+    point.cpp \
+    table.cpp
 
 HEADERS += \
+    edgebucket.h \
     mainwindow.h \
-    openglpanel.h
+    openglpanel.h \
+    point.h \
+    table.h
 
 FORMS += \
     mainwindow.ui

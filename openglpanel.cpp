@@ -1,89 +1,5 @@
 #include "openglpanel.h"
 
-const double line_height = 0.001;
-const int multiplier = 25;
-const bool DEBUG = false;
-int executed = 0;
-
-class Point{
-    public:
-        Point(int x, int y){
-            this->x = x;
-            this->y = y;
-        }
-        Point(int x, int y, char name){
-            this->x = x;
-            this->y = y;
-            this->name = name;
-        }
-        int x, y;
-        char name;
-};
-
-class EdgeBucket{
-public:
-    EdgeBucket(int ymax, int xmin, double m){
-        this->ymax = ymax;
-        this->xmin = xmin;
-        this->m = m;
-    }
-    int ymax;
-    double m, xmin;
-    char from, to; // Only for Debugging purposes
-};
-
-class Table{
-    private:
-        static bool compareBuckets(EdgeBucket b1, EdgeBucket b2){
-            return b1.xmin < b2.xmin;
-        }
-        void sort(){
-            std::sort(buckets.begin(), buckets.end(), this->compareBuckets);
-        }
-    public:
-        std::vector<EdgeBucket> buckets;
-        void addBucket(int ymax, int xmin, double m, char from, char to)
-        {
-            EdgeBucket bucket = EdgeBucket(ymax, xmin, m);
-            bucket.from = from;
-            bucket.to = to;
-            buckets.push_back(bucket);
-            this->sort();
-        }
-        void addBucket(int ymax, int xmin, double m){
-            buckets.push_back(EdgeBucket(ymax, xmin, m));
-            this->sort();
-        }
-        void addBucket(EdgeBucket bucket){
-            buckets.push_back(bucket);
-            this->sort();
-        }
-        void removeBucketsAtYMax(int scanline)
-        {
-            for(int i =0; i<buckets.size();i++){
-                if(buckets.at(i).ymax == scanline){
-                    if(DEBUG)
-                        printf("Removed bucket from AET: (%d, %lf, %lf) (%c%c)\n",
-                               buckets.at(i).ymax, buckets.at(i).xmin, buckets.at(i).m, buckets.at(i).from, buckets.at(i).to);
-                    buckets.erase(buckets.begin() + i);
-                    i--;
-                }
-            }
-            this->sort();
-        }
-        void updateX(){
-            for(int i = 0; i< buckets.size();i++){
-                if(DEBUG)
-                    printf("Updated Xmin from (%d,%lf,%lf) (%c%c) to %lf\n",
-                           buckets[i].ymax, buckets[i].xmin, buckets[i].m,buckets[i].from, buckets[i].to, buckets[i].xmin + buckets[i].m);
-                buckets[i].xmin += buckets[i].m;
-            }
-        }
-};
-
-std::map<double, Table> EdgeTable;
-Table ActiveEdgeTable;
-
 OpenGLPanel::OpenGLPanel(QWidget *parent) : QOpenGLWidget {parent}
 {
 
@@ -91,14 +7,83 @@ OpenGLPanel::OpenGLPanel(QWidget *parent) : QOpenGLWidget {parent}
 
 void OpenGLPanel::initializeGL(){
     initializeOpenGLFunctions();
-    glClearColor(1, 1, 0, 1);
+    glClearColor(1, 1, 1, 1);
     glMatrixMode( GL_PROJECTION );
     glLoadIdentity();
     glOrtho(0, 40*multiplier, 0, 25*multiplier, 0, -1);
     glMatrixMode( GL_MODELVIEW );
 }
 
-void addEdgeToET(int x1, int y1, int x2, int y2, char from = ';', char to = ';')
+void OpenGLPanel::addPoint(Point ponto){
+    pontos.push_back(ponto);
+    this->visualizePoint = Point(-1,-1);
+    update();
+}
+
+void OpenGLPanel::setVisualizePoint(Point ponto){
+    this->visualizePoint = ponto;
+    update();
+}
+
+void OpenGLPanel::limparTudo(){
+    this->visualizePoint = Point(-1,-1);
+    pontos.clear();
+    update();
+}
+
+
+void OpenGLPanel::setCor(float r, float g, float b){
+    this->r = r;
+    this->g = g;
+    this->b = b;
+    update();
+}
+
+void OpenGLPanel::setRandomColor(){
+    this->r = ((float) rand() / (RAND_MAX));
+    this->g = ((float) rand() / (RAND_MAX));
+    this->b = ((float) rand() / (RAND_MAX));
+    printf("r: %f, g: %f, b: %f\n", r, g, b);
+    update();
+}
+
+void OpenGLPanel::start()
+{
+    int i;
+
+    std::vector<Point> _pontos = pontos;
+
+    if(_pontos.size()<=0) return;
+
+    _pontos.push_back(_pontos.at(0));
+
+    for(i = 0;i<_pontos.size();i++)
+    {
+        int x = _pontos[i].x;
+        _pontos.at(i).x = _pontos.at(i).x * multiplier;
+        _pontos.at(i).y = _pontos.at(i).y * multiplier;
+    }
+
+    EdgeTable.clear();
+
+
+    glColor3f(r,g,b);
+
+    for(i=0; i < _pontos.size() - 1 ; i++)
+    {
+        glBegin(GL_LINES);
+            glVertex2i( _pontos[i].x, _pontos[i].y);
+            glVertex2i( _pontos[i+1].x, _pontos[i+1].y);
+        glEnd();
+        if(!DEBUG) addEdgeToET(_pontos[i].x, _pontos[i].y, _pontos[i+1].x, _pontos[i+1].y);
+        else addEdgeToET(_pontos[i].x, _pontos[i].y, _pontos[i+1].x, _pontos[i+1].y, _pontos[i].name, _pontos[i+1].name);
+    }
+
+    ScanLine(25*multiplier);
+    std::thread timer();
+}
+
+void OpenGLPanel::addEdgeToET(int x1, int y1, int x2, int y2, char from, char to)
 {
     int ymax, ymin, xmin;
     double m;
@@ -120,9 +105,6 @@ void addEdgeToET(int x1, int y1, int x2, int y2, char from = ';', char to = ';')
     }
 
     EdgeTable[ymin].addBucket(ymax, xmin, m, from, to);
-
-//    EdgeTable.at(EdgeTable.size()-1).addBucket(ymax, xmin, m);
-//    EdgeTable[ymin].addBucket(ymax, xmin, m);
 }
 
 void OpenGLPanel::ScanLine(int maxy){
@@ -141,13 +123,14 @@ void OpenGLPanel::ScanLine(int maxy){
 
         ActiveEdgeTable.removeBucketsAtYMax(scanline);
 
-        int coordCount = 0, x1 = 0, x2 =0, ymax1 = 0, ymax2 = 0, FillFlag = 0;
+        int count = 0, x1 = 0, x2 =0, ymax1 = 0, ymax2 = 0;
+        bool toFill = false;
 
         for(EdgeBucket bucket : ActiveEdgeTable.buckets)
         {
             if(DEBUG) printf("Bucket: (%d,%lf,%lf) (%c%c) at coordCount = %d\n",
-                             bucket.ymax, bucket.xmin, bucket.m, bucket.from, bucket.to ,coordCount);
-            if(coordCount % 2 == 0){
+                             bucket.ymax, bucket.xmin, bucket.m, bucket.from, bucket.to ,count);
+            if(count % 2 == 0){
                 x1 = (int)bucket.xmin;
                 ymax1 = bucket.ymax;
                 if(x1 == x2)
@@ -157,14 +140,14 @@ void OpenGLPanel::ScanLine(int maxy){
                         x2 = x1;
                         ymax2 = ymax1;
                     }
-                    else coordCount++;
+                    else count++;
                 }
-                else coordCount++;
+                else count++;
             }
             else{
                 x2 = (int) bucket.xmin;
                 ymax2 = bucket.ymax;
-                FillFlag = 0;
+                toFill = false;
                 if(x1 == x2){
                      if(((x1==ymax1)&&(x2!=ymax2))||((x1!=ymax1)&&(x2==ymax2))){
                          if(DEBUG) printf("Intersecção!!\n");
@@ -172,20 +155,20 @@ void OpenGLPanel::ScanLine(int maxy){
                          ymax1 = ymax2;
                      }
                      else{
-                         coordCount++;
-                         FillFlag = 1;
+                         count++;
+                         toFill = true;
                          if(DEBUG) printf("Setted FillFlag\n");
                      }
                 }
                 else{
-                    coordCount++;
-                    FillFlag = 1;
+                    count++;
+                    toFill = true;
                     if(DEBUG) printf("Setted FillFlag\n");
                 }
-                if(FillFlag)
+                if(toFill)
                 {
                     if(DEBUG) printf("Filling line: %d from %d to %d\n", scanline, x1, x2);
-                    glColor3f(1,0,0);
+                    glColor3f(r,g,b);
                     glBegin(GL_LINES);
                         glVertex2i(x1,scanline);
                         glVertex2i(x2,scanline);
@@ -198,83 +181,23 @@ void OpenGLPanel::ScanLine(int maxy){
     }
 }
 
-void OpenGLPanel::start()
-{
-    /*std::vector<Point> pontos = {
-        Point(2,3, 'A'),
-        Point(7,1, 'B'),
-        Point(13, 5, 'C'),
-        Point(13, 11, 'D'),
-        Point(7,7, 'E'),
-        Point(2,9, 'F')
-    };*/
-
-    std::vector<Point> pontos={
-        Point(4, 2, 'A'),
-        Point(6,2,'B'),
-        Point(6,6, 'C'),
-        Point(9,6,'D'),
-        Point(11,8,'E'),
-        Point(8,11, 'F'),
-        Point(4,11,'G'),
-        Point(4,9,'H'),
-        Point(1,9,'I'),
-        Point(1,4,'J')
-    };
-
-    int i;
-
-    pontos.push_back(pontos.at(0));
-
-    for(i = 0;i<pontos.size();i++)
-    {
-        pontos[i].x = pontos[i].x * multiplier;
-        pontos[i].y = pontos[i].y * multiplier;
-    }
-
-    EdgeTable.clear();
-
-    for(i=0; i < pontos.size() - 1 ; i++)
-    {
-        glBegin(GL_LINES);
-            glVertex2i( pontos[i].x, pontos[i].y);
-            glVertex2i( pontos[i+1].x, pontos[i+1].y);
-        glEnd();
-        if(!DEBUG) addEdgeToET(pontos[i].x, pontos[i].y, pontos[i+1].x, pontos[i+1].y);
-        else addEdgeToET(pontos[i].x, pontos[i].y, pontos[i+1].x, pontos[i+1].y, pontos[i].name, pontos[i+1].name);
-    }
-
-    ScanLine(12*multiplier);
-
-//    std::map<int, Table>::iterator it = EdgeTable.begin();
-
-//    while(it != EdgeTable.end())
-//    {
-//        for(int i=0; i < it->second.buckets.size(); i++)
-//        {
-//            EdgeBucket bucket = it->second.buckets.at(i);
-//            printf("Bucket %d from Scanline(%d): Ymax(%d) Xmin(%d) m(%lf)\n", i, it->first ,bucket.ymax, bucket.xmin, bucket.m);
-//        }
-//        it++;
-//    }
-}
-
 void OpenGLPanel::paintGL(){
     glClear(GL_COLOR_BUFFER_BIT);
+
     start();
 
 
-
-//    for(edgetable : EdgeTable){
-//        for(int i=0;i<edgetable.buckets.size();i++){
-//            EdgeBucket bucket = edgetable.buckets.at(i);
-//            printf("Bucket %d: Ymax(%d) Xmin(%d) m(%lf)\n", i, bucket.ymax, bucket.xmin, bucket.m);
-//        }
-//    }
-
+    if(visualizePoint.x >= 0 && visualizePoint.y >= 0)
+    {
+        if(r == 0.0 && g == 0.0 && b == 0.0) glColor3f(1,0,0);
+        else glColor3f(0,0,0);
+        glPointSize(10);
+        glBegin(GL_POINTS);
+            glVertex2i(visualizePoint.x*multiplier, visualizePoint.y*multiplier);
+        glEnd();
+        glFlush();
+    }
 }
 
-//void OpenGLPanel::resizeGL(int w, int h){
 
-//}
 

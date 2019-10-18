@@ -10,7 +10,7 @@ void OpenGLPanel::initializeGL(){
     glClearColor(1, 1, 1, 1);
     glMatrixMode( GL_PROJECTION );
     glLoadIdentity();
-    glOrtho(0, 40*multiplier, 0, 25*multiplier, 0, -1);
+    glOrtho(0, this->width(), this->height(), 0, 0, -1);
     glMatrixMode( GL_MODELVIEW );
 }
 
@@ -60,8 +60,8 @@ void OpenGLPanel::start()
     for(i = 0;i<_pontos.size();i++)
     {
         int x = _pontos[i].x;
-        _pontos.at(i).x = _pontos.at(i).x * multiplier;
-        _pontos.at(i).y = _pontos.at(i).y * multiplier;
+        _pontos.at(i).x = _pontos.at(i).x;
+        _pontos.at(i).y = _pontos.at(i).y;
     }
 
     EdgeTable.clear();
@@ -79,7 +79,7 @@ void OpenGLPanel::start()
         else addEdgeToET(_pontos[i].x, _pontos[i].y, _pontos[i+1].x, _pontos[i+1].y, _pontos[i].name, _pontos[i+1].name);
     }
 
-    ScanLine(25*multiplier);
+    ScanLine(this->height());
     std::thread timer();
 }
 
@@ -193,11 +193,21 @@ void OpenGLPanel::paintGL(){
         else glColor3f(0,0,0);
         glPointSize(10);
         glBegin(GL_POINTS);
-            glVertex2i(visualizePoint.x*multiplier, visualizePoint.y*multiplier);
+            glVertex2i(visualizePoint.x, visualizePoint.y);
         glEnd();
         glFlush();
     }
 }
 
+
+void OpenGLPanel::mousePressEvent(QMouseEvent *e){
+    printf("Before process: %d %d\n", e->x(), e->y());
+    int x = e->x();
+    int y = e->y();
+    printf("Height: %d  Widdth: %d\n", this->height(), this->width());
+    printf("After process: %d %d\n", x, y);
+
+    addPoint(Point(x, y));
+}
 
 

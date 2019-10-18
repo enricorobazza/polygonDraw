@@ -4,6 +4,7 @@
 #include <QOpenGLWidget>
 #include <QOpenGLFunctions>
 #include <QtDebug>
+#include <QMouseEvent>
 #include <chrono>
 #include <thread>
 #include <stdlib.h>
@@ -22,6 +23,7 @@ protected:
     void paintGL() override;
     void start();
     void ScanLine(int maxy);
+    void mousePressEvent(QMouseEvent *e) override;
 private:
     const int multiplier = 25;
     const bool DEBUG = false;
